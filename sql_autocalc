@@ -1,0 +1,56 @@
+set @get_requiredcount:=(select count(*)from `cry_inventory` where dummy is null); /*get rows that need to be calc*/
+DROP PROCEDURE
+IF
+	EXISTS inventorycalc;
+	Delimiter //
+CREATE PROCEDURE inventorycalc () BEGIN
+	DECLARE
+		runtime INT DEFAULT 0 ;
+	WHILE
+			( runtime < @get_requiredcount ) DO
+			
+		
+set @get_id:=(select id from `cry_inventory` where dummy is null limit 0,1);
+/*charge id*/
+
+set @get_orderamount:=(select `order amount` from cry_inventory where id = @get_id); 
+/*use when receive more than order*/
+
+set @get_receivedamount:=(select `received items` from cry_inventory where id = @get_id); /*charge received item amount*/
+
+set @get_zohopurchaseorder:=(select `zoho purchase order` from `cry_inventory` where id = @get_id);
+/*charge zoho purchase order*/
+
+set @get_orderprice:=(select `order price` from cry_inventory where id=@get_id);
+/*charge order price of that stone*/
+
+set @get_totalshippingcost:=(select `shipping cost` from cry_inventory where id=@get_id);
+/*charge total shipping cost of that purchase order*/
+
+set @get_sku:=(select `sku` from `cry_inventory` where `id` = @get_id and `zoho purchase order` = @get_zohopurchaseorder);
+/*charge sku cluster*/
+
+set @get_itselfweight:=(select `weights(pcs)` from cry_inventory where `id`= @get_id);
+/*charge individual stone weight that gonna be counted*/
+
+set @get_skutotalweight:=(select sum(`weights(pcs)`) from `cry_inventory` where `zoho purchase order`= @get_zohopurchaseorder and `sku`=@get_sku);
+/*charge item cluster weight of specific purchase order and item group*/
+
+set @get_totalitemweight:=(select sum(`weights(pcs)`) from cry_inventory where `zoho purchase order` = @get_zohopurchaseorder);
+/*charge sum up of all entered item, for counting T.W.S*, can go/down by chaing order's item amount*/
+
+update cry_inventory set `weight(total)` = @get_skutotalweight where id=@get_id;
+update cry_inventory set `dummy` = '1' where id=@get_id;
+update cry_inventory set `total weight share` = @get_itselfweight / @get_totalitemweight where id=@get_id;
+
+/*------------------------------*/
+select @get_orderprice , @get_orderamount , @get_receivedamount , @get_totalshippingcost ,  @get_id;
+
+update cry_inventory set `final cost` = (@get_orderprice * @get_orderamount / @get_receivedamount )+( @get_totalshippingcost * `total weight share`) where id= @get_id;
+
+
+SET runtime = runtime + 1 ;
+	END WHILE;
+	END;
+// CALL inventorycalc ()
+
