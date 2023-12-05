@@ -1,3 +1,4 @@
+//Copyright Peter Leung 2023//
 set @get_requiredcount:=(select count(*)from `cry_inventory` where dummy is null); /*get rows that need to be calc*/
 DROP PROCEDURE
 IF
